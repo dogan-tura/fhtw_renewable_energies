@@ -1,0 +1,109 @@
+---
+title: "EDA_RENENG"
+format: html
+---
+
+# Libraries
+
+```{r}
+#| code-summary: Code for Libraries
+#| code-fold: true
+suppressPackageStartupMessages({
+  if(!require(arrow)) install.packages("arrow")
+  library("arrow")
+  if(!require(tidyverse)) install.packages("tidyverse"); library(tidyverse)
+  if(!require(lubridate)) install.packages("lubridate"); library(lubridate)      # For datetime manipulation
+  if(!require(summarytools)) install.packages("summarytools"); library(summarytools)   # For descriptive statistics
+  if(!require(DataExplorer)) install.packages("DataExplorer"); library(DataExplorer)   # For automated EDA
+  if(!require(GGally)) install.packages("GGally"); library(GGally)         # For correlation plots
+  if(!require(scales)) install.packages("scales"); library(scales)
+
+})
+```
+
+
+
+```{r}
+#| code-summary: Code for In-Line Number Formatting
+#| code-fold: true
+number_formatting <- function(val){return(paste(round(val,2)))}
+number_formatting_percent <- function(val){
+return(paste(round(val,4)*100, "%"))}
+
+'%nin%' <- function(x,y)!('%in%'(x,y))
+```
+
+```{r}
+#| code-summary: Code for Data Import
+#| code-fold: true
+my_path <- "D:/Uni/FH/Data Science - Master/Semester 3/Renewable Energies (Specialisation)/Project/"
+
+data <- read_delim(paste0(my_path, "merged_output.csv"), delim=",")
+```
+
+```{r}
+#| code-summary: Code for Data Cleaning
+#| code-fold: true
+
+datac <- data
+
+names(datac) <- c("DATETIME", "TOT_INP_POW", "TOT_INP_POW2", "ACT_POW", "UNIX_TIME")
+
+datac$DATETIME <- as.POSIXct(datac$DATETIME, format = "%Y-%m-%d %H:%M:%S", tz = "UTC")
+
+datac$UNIX_TIME <- as.POSIXct(datac$UNIX_TIME, origin = "1970-01-01", tz = "UTC")
+
+datac$TOT_INP_POW <- as.numeric(datac$TOT_INP_POW)
+datac$TOT_INP_POW2 <- as.numeric(datac$TOT_INP_POW2)
+datac$ACT_POW <- as.numeric(datac$ACT_POW)
+
+```
+
+
+# EDA
+
+```{r}
+summary(datac)
+```
+```{r}
+descr(datac, stats = c("mean", "sd", "min", "med", "max", "iqr", "n.valid"))
+```
+
+```{r}
+ggplot(datac, aes(x = DATETIME, y = ACT_POW)) +
+  geom_line(color = "steelblue") +
+  labs(title = "Active Power Over Time",
+       x = "Datetime", y = "Active Power (ACT_POW)") +
+  theme_minimal()
+```
+```{r}
+ggplot(datac, aes(x = TOT_INP_POW, y = ACT_POW)) +
+  geom_point(alpha = 0.5, color = "tomato") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(title = "TOT_INP_POW vs ACT_POW",
+       x = "Total Input Power", y = "Active Power") +
+  theme_minimal()
+```
+```{r}
+numeric_vars <- datac %>%
+  select(where(is.numeric)) %>%
+  na.omit()
+
+ggpairs(numeric_vars, title = "Correlation Plot")
+```
+
+```{r}
+datac %>%
+  pivot_longer(cols = c(TOT_INP_POW, TOT_INP_POW2, ACT_POW),
+               names_to = "Variable", values_to = "Value") %>%
+  ggplot(aes(x = Value, fill = Variable)) +
+  geom_histogram(alpha = 0.6, bins = 30, position = "identity") +
+  facet_wrap(~Variable, scales = "free") +
+  theme_minimal() +
+  labs(title = "Distribution of Power Variables")
+```
+```{r}
+boxplot(datac$ACT_POW, main = "Boxplot of ACT_POW", ylab = "Value")
+boxplot(datac$TOT_INP_POW, main = "Boxplot of TOT_INP_POW", ylab = "Value")
+```
+
